@@ -57,15 +57,83 @@ namespace Viagogo
         public string City { get; set; }
     }
 
+    public static class EmailTemplate
+    {
+        public static string GeneralTemplate(Customer c, Event e, int distance, int? price = null) => $"{c.Name}: {e.Name} in {e.City}"
+            + (distance > 0 ? $" ({distance} miles away)" : "")
+            + (price.HasValue ? $" for ${price}" : "");
+    }
+
     public static class Notification
     {
         // You do not need to know how these methods work
-        public static void AddToEmail(Customer c, Event e, int? price = null)
+        public static void AddToEmail(Customer c, List<Event> es, int? price = null)
         {
-            var distance = Location.GetDistance(c.City, e.City);
-            Console.Out.WriteLine($"{c.Name}: {e.Name} in {e.City}"
-            + (distance > 0 ? $" ({distance} miles away)" : "")
-            + (price.HasValue ? $" for ${price}" : ""));
+            foreach(var e in es)
+            {
+                var emailTemplate = EmailTemplate.GeneralTemplate(c, e, Location.GetDistance(c.City, e.City));
+                Console.Out.WriteLine(emailTemplate);
+            }
+        }
+    }
+
+    public static class Stubhub
+    {
+        public static void SendEmailByCity(Customer c, List<Event> eventsByCity)
+        {
+            if (eventsByCity.Count > 0)
+                Notification.AddToEmail(c, eventsByCity);
+            else
+            {
+                // log failure
+            }
+        }
+
+        public static Dictionary<Event, int> GetEventDistancePerCity(Customer c, int limit = 0)
+        {
+            var dictDistance = new Dictionary<Event, int>();
+            try
+            {
+                var events = Event.GetEvents();
+                foreach (Event e in events)
+                {
+                    dictDistance.Add(e, Location.GetDistance(c.City, e.City));
+                }
+
+                dictDistance = dictDistance.OrderBy(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+                if (limit > 0)
+                    dictDistance = dictDistance.Take(5).ToDictionary(x => x.Key, x => x.Value);
+            }
+            catch (Exception ex)
+            {
+                // log failure
+            }
+
+            return dictDistance;
+        }
+
+        public static Dictionary<Event, int> GetPricePerEvent(bool asc = false)
+        {
+            var dictEventsAndPrices = new Dictionary<Event, int>();
+            try
+            {
+                var events = Event.GetEvents();
+                foreach (Event e in events)
+                {
+                    dictEventsAndPrices.Add(e, Event.GetPrice(e));
+                }
+
+                if (asc)
+                    dictEventsAndPrices = dictEventsAndPrices.OrderBy(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+                else
+                    dictEventsAndPrices = dictEventsAndPrices.OrderByDescending(x => x.Value).ToDictionary(x => x.Key, x => x.Value);
+            }
+            catch (Exception ex)
+            {
+                // log failure
+            }
+
+            return dictEventsAndPrices;
         }
     }
 
@@ -73,43 +141,26 @@ namespace Viagogo
     {
         static void Main(string[] args)
         {
-            /*
-             * 1. What should be your approach to getting the list of events?
-             * Ideally, this should be a GET call to fetch a list of all events. More specifically, if we already know the customer's citu,
-             * this can be another API call which is GET call to fetch a list of events by City.
-             * 
-             * 2. How would you call the AddToEmail method in order to send the events in an email?
-             * AddToEmail should be a service on its own that takes in the customer object and a list of events
-             * 
-             * 3. What is the expected output if we only have the client John Smith?
-               4. Do you believe there is a way to improve the code you first wrote?
-             */
 
             // Customer
             var customer = new Customer { Name = "Mr. Fake", City = "New York" };
 
-            // answer to number 1
+            // 1
             var eventsByCity = Event.GetEventsByCity(customer.City);
+            Stubhub.SendEmailByCity(customer, eventsByCity);
 
-            foreach (var evt in eventsByCity)
-            {
-                Notification.AddToEmail(customer, evt);
-            }
+            // 2
+            Stubhub.GetEventDistancePerCity(customer);
 
-            /**
-            * We want you to send an email to this customer with all events in their city
-            * Just call AddToEmail(customer, event) for each event you think they should get
-            */
+            // 3
+            var eventsByDistance = Stubhub.GetEventDistancePerCity(customer, 5).Select(x => x.Key).ToList();
+            Stubhub.SendEmailByCity(customer, eventsByDistance);
+
+            // 4
+            var eventsByPrice = Stubhub.GetPricePerEvent().Select(x => x.Key).ToList();
+            Stubhub.SendEmailByCity(customer, eventsByPrice);
+
+            // I can unit test each class to ensure the expected output is obtained
         }
-
-        
-        
     }
-} /*
-var customers = new List<Customer>{
-new Customer{ Name = "Nathan", City = "New York"},
-new Customer{ Name = "Bob", City = "Boston"},
-new Customer{ Name = "Cindy", City = "Chicago"},
-new Customer{ Name = "Lisa", City = "Los Angeles"}
-};
-*/
+}

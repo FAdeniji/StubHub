@@ -31,12 +31,12 @@ namespace Viagogo
             //1. find out all events that arein cities of customer
             // then add to email.
             var customer = new Customer { Name = "Mr. Fake", City = "New York" };
-            var query = events.Where(e => e.City == customer.City).ToList();
+            var eventsInCustomerCity = events.Where(e => e.City == customer.City).ToList();
 
             // 1. TASK
-            foreach (var item in events)
+            foreach (var evt in eventsInCustomerCity)
             {
-                AddToEmail(customer, item);
+                AddToEmail(customer, evt);
             }
 
             /**

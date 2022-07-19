@@ -9,6 +9,23 @@ namespace Viagogo
         public string Name { get; set; }
         public string City { get; set; }
     }
+
+    public class EventWithDistance : Event
+    {
+        public int Distance { get; set; }
+    }
+
+    public class EventWithPrice : Event
+    {
+        public int Price { get; set; }
+    }
+
+    public class EventWithPriceAndDistance : Event
+    {
+        public int Distance { get; set; }
+        public int Price { get; set; }
+    }
+
     public class Customer
     {
         public string Name { get; set; }
@@ -33,19 +50,78 @@ namespace Viagogo
             //1. find out all events that arein cities of customer
             // then add to email.
             var customer = new Customer { Name = "Mr. Fake", City = "New York" };
+            SendEventsInCustomerCity(events, customer);
+
+            /**
+            * We want you to send an email to this customer with all events in their city
+            * Just call AddToEmail(customer, event) for each event you think they should get
+            */
+
+            // What should be your approach to getting the distance between the customer’s city and the other cities on the list?
+            SendClosestEventsWithLimit(events, customer, 5);
+
+            // If the GetDistance method is an API call which could fail or is too expensive, how will u improve the code written in 2 ?
+
+            // If we also want to sort the resulting events by other fields like price
+            SendEventByPriceFilter(events, customer, 0, 10);
+        }
+
+        public static List<EventWithPrice> SendEventByPriceFilter(List<Event> events, Customer customer, int min = 0, int max = 0)
+        {
+            var eventsAndDistance = events.Select(x => new EventWithPrice()
+            {
+                Name = x.Name,
+                City = customer.City,
+                Price = GetPrice(x)
+            }).ToList();
+
+            // How would you get the 5 closest events and how would you send them to the client in an email?
+            var closestEvents = eventsAndDistance.Where(e => e.Price >= min && e.Price <= max).ToList();
+           
+            foreach (var item in closestEvents)
+            {
+                AddToEmail(customer, item);
+            }
+
+            return eventsAndDistance;
+        }
+
+        public static List<EventWithDistance> SendClosestEventsWithLimit(List<Event> events, Customer customer, int limit)
+        {
+            var eventsAndDistance = events.Select(x => new EventWithDistance()
+            {
+                Name = x.Name,
+                City = customer.City,
+                Distance = GetDistance(customer.City, x.City)
+            }).ToList();
+
+            // How would you get the 5 closest events and how would you send them to the client in an email?
+            var closestEvents = new List<EventWithDistance>();
+            if (limit > 0)
+                closestEvents = eventsAndDistance.OrderBy(e => e.Distance).Take(limit).ToList();
+            else
+                closestEvents = eventsAndDistance.OrderBy(e => e.Distance).ToList();
+            
+            foreach (var item in closestEvents)
+            {
+                AddToEmail(customer, item);
+            }
+
+            return eventsAndDistance;
+        }
+
+        public static List<Event> SendEventsInCustomerCity(List<Event> events, Customer customer)
+        {
             var evensInCustomersCity = from evt in events
-                        where evt.City.Equals("New York")
-                        select evt;
+                                       where evt.City.Equals("New York")
+                                       select evt;
             // 1. TASK
             foreach (var item in evensInCustomersCity)
             {
                 AddToEmail(customer, item);
             }
 
-            /**
-            * We want you to send an email to this customer with all events in their city
-            * Just call AddToEmail(customer, event) for each event you think they should get
-            */
+            return evensInCustomersCity;
         }
 
         // You do not need to know how these methods work
@@ -62,7 +138,15 @@ namespace Viagogo
         }
         static int GetDistance(string fromCity, string toCity)
         {
-            return AlphebiticalDistance(fromCity, toCity);
+            try
+            {
+                return AlphebiticalDistance(fromCity, toCity);
+            }
+            catch (Exception ex)
+            {
+                // log error
+                return 0;
+            }
         }
         private static int AlphebiticalDistance(string s, string t)
         {
